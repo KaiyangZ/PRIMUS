@@ -26,6 +26,7 @@ A list with the following members:
 \item{$Z}{ The denoised profiles for each cluster. }
 \item{$L}{ The identified denoised cell cluster labels for each cell. }
 \item{$X}{ The profiles for each nuisance factor. }
+\item{$lik}{ The likelihood of the fit. }
 }
 \description{
 \code{runPrimus} identifies phenotypic cell groups from scRNA-seq data while accounting for nuisance factors (e.g. data source specific signals, technical noises).

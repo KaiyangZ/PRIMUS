@@ -14,6 +14,7 @@
 #'   \item{$Z}{ The denoised profiles for each cluster. }
 #'   \item{$L}{ The identified denoised cell cluster labels for each cell. }
 #'   \item{$X}{ The profiles for each nuisance factor. }
+#'   \item{$lik}{ The likelihood of the fit. }
 #' 
 #' @rdname runPrimus
 #' @export
@@ -67,7 +68,7 @@ runPrimus <- function(Y, D, k, g = 1., w = 1., max.iter = 100L, min.delta = 1.48
         # solve final parameters
         t_X_Z <- primus_solve(t_X_Z, .diag.mul.right(D_C, g), t_Y)
 
-        return (list(X = t(t_X_Z[seq_len(r), , drop = F]), Z = t(t_X_Z[seq_len(k)+r, , drop = F]), L = L, res = sum.res))
+        return (list(X = t(t_X_Z[seq_len(r), , drop = F]), Z = t(t_X_Z[seq_len(k)+r, , drop = F]), L = L, lik = sum.res))
 }
 
 .diag.mul.right <- function(A, d)
