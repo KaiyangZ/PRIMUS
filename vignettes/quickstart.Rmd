@@ -1,0 +1,148 @@
+---
+title: "Poisson scRNA Integration of Mixed Unknown Signals"
+author: "Kaiyang Zhang"
+date: "06/09/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this guide, we will use a simulated dataset that was generated using the [splatter](https://www.bioconductor.org/packages/release/bioc/vignettes/splatter/inst/doc/splatPop.html) package to demonstrates how to use PRIMUS. To begin, download the [raw counts](https://app.anduril.org/flees/download/simulated_scRNAseq/Sb12trYZNOwDthIjTHvuNSvdBkhea3/counts.RDS) and the [metadata](https://app.anduril.org/flees/download/simulated_scRNAseq/Sb12trYZNOwDthIjTHvuNSvdBkhea3/metadata.RDS). 
+
+## 1. Loading the data
+
+We will load the raw counts and the metadata. We will also compute the log-normalized expression values, which will **only** be used for visualizing the data before denoising. 
+
+```{r message = FALSE}
+library(SingleCellExperiment)
+library(scuttle)
+
+counts = readRDS('counts.RDS')
+meta = readRDS('metadata.RDS')
+
+simData = logNormCounts(SingleCellExperiment(assays = list(counts = counts )))
+
+simData
+```
+
+Now we check the cell group composition of each sample. 
+```{r message = FALSE}
+table(meta$Group, meta$Sample) 
+```
+There are 6 samples and 5 phenotypic cell groups, each sample only contains a subset of cell groups. 
+sample_2 does not have any cell type overlapping with sample_3 and sample_5, sample_4 has no cell type overlapping with sample_6. Group5 is sample_3 specific. 
+
+From the UMAP, we can see that there are clear sample specific effects in this dataset: 
+
+```{r message = FALSE, fig.height=4, fig.width=10}
+library(uwot)
+library(ggplot2)
+library(cowplot)
+
+umap.coor.raw <- uwot::umap(t(simData@assays@data$logcounts),  n_components = 2, metric = "cosine", min_dist = 0.3, n_neighbors = 30)
+
+meta$UMAP_raw_1 = umap.coor.raw[, 1]
+meta$UMAP_raw_2 = umap.coor.raw[, 2]
+
+umap.raw.g <- ggplot(meta, aes_string(x= "UMAP_raw_1", y="UMAP_raw_2", color = "Group") ) +
+                geom_point(size = 0.5) +
+                theme_classic() +
+                xlab("UMAP_1") + 
+                ylab("UMAP_2") +
+                ggtitle("colored by phenotypic cell group") +
+                guides(colour = guide_legend(override.aes = list(size=3)), shape = guide_legend(override.aes = list(size=3)))
+
+umap.raw.s <- ggplot(meta, aes_string(x= "UMAP_raw_1", y="UMAP_raw_2", color = "Sample") ) +
+                geom_point(size = 0.5) +
+                theme_classic() +
+                xlab("UMAP_1") + 
+                ylab("UMAP_2") +
+                ggtitle("colored by sample") +
+         guides(colour = guide_legend(override.aes = list(size=3)), shape = guide_legend(override.aes = list(size=3)))
+
+cowplot::plot_grid(umap.raw.s, umap.raw.g, nrow = 1)
+
+```
+
+## 2. Clustering with PRIMUS 
+
+The runPrimus function identifies phenotypic cell groups from scRNA-seq data while accounting for nuisance factors (here is the sample specific effects). As input, runPrimus takes the raw counts matrix, an adjacency matrix specifying the sample labels and the size factor for each cell. runPrimus returns a list containing the identified cell clusters, the denoised profile centroids for each cluster, the sample specific effects and the cost of the model fit. We can run PRIMUS with multiple random restarts and select the best fit (the one with lowest cost). 
+
+```{r message = FALSE}
+library(PRIMUS)
+
+# let's convert the sample labels into an adjacency matrix
+labels2weights <- function(L, levels = sort(unique(L)))
+                        return (outer(L, levels, `==`) + 0L)
+
+D = t(labels2weights(meta$Sample))
+
+# Here we run PRIMUS with 10 random restarts (4-5 minutes with 1 core)
+# k is the number of clusters. Users can set different values and select the optimal k based on BIC.
+fits <- list()
+
+for (i in seq.int(5) ){
+    fits[[i]] = runPrimus(Y = counts, D = D, g = meta$sizeFactor, k = 5, max.iter = 100)
+}
+
+fit = fits[[which.min(sapply(fits, function(x) x$cost))]]
+
+```
+
+Now let's compare the PRIMUS identified cell clusters and the phenotypic groups
+
+```{r message = FALSE}
+library(mclust)
+
+adjustedRandIndex(fit$L, meta$Group)
+
+```
+
+As we can see from the adjusted rand index, PRIMUS accurately cluster cells based on phenotypic cell groups. 
+
+## 3. Computing denoised profiles for each cell using PRIMUS 
+
+Now we can compute the denoised expression profiles for each cell. The primus_centroid function allows to computed the denoised profile centroids for any cell subset, here we compute it for each single cell. 
+
+```{r message = FALSE}
+Z = sapply(seq.int(ncol(counts)), function(i) primus_centroid(A = fit$X %*% D[, i, drop = F], B = counts[, i, drop = F], g = meta$sizeFactor[i]))
+
+# take square root for variance-stabilizing
+Z.sqrt = sqrt(Z)
+
+```
+
+Visualization using UMAP 
+
+```{r message = FALSE, fig.height=4, fig.width=14}
+umap.coor.Z <- uwot::umap(t(Z.sqrt), n_components = 2,
+                           metric = "cosine",  min_dist = 0.3,
+                           n_neighbors = 30 )
+
+meta$Z_UMAP_1 = umap.coor.Z[, 1]
+meta$Z_UMAP_2 = umap.coor.Z[, 2]
+meta$cluster = as.factor(fit$L)
+
+umap.Z.g <- ggplot(meta, aes_string(x= "Z_UMAP_1", y="Z_UMAP_2", color = "Group") ) +
+                 geom_point(size = 0.5) +
+                 theme_classic() +
+                  ggtitle("colored by phenotypic cell group") + 
+                 guides(colour = guide_legend(override.aes = list(size=3)), shape = guide_legend(override.aes = list(size=3)))
+
+umap.Z.s <- ggplot(meta, aes_string(x= "Z_UMAP_1", y="Z_UMAP_2", color = "Sample") ) +
+                 geom_point(size = 0.5) +
+                 theme_classic() +
+                ggtitle("colored by sample") + 
+          guides(colour = guide_legend(override.aes = list(size=3)), shape = guide_legend(override.aes = list(size=3)))
+
+umap.Z.c <- ggplot(meta, aes_string(x= "Z_UMAP_1", y="Z_UMAP_2", color = "cluster") ) +
+                geom_point(size = 0.5) +
+                theme_classic() +
+                ggtitle("colored by PRIMUS identified clusters") +
+         guides(colour = guide_legend(override.aes = list(size=3)), shape = guide_legend(override.aes = list(size=3)) )
+
+cowplot::plot_grid(umap.Z.s, umap.Z.g, umap.Z.c, nrow = 1)
+
+```
