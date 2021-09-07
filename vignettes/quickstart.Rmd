@@ -79,11 +79,12 @@ labels2weights <- function(L, levels = sort(unique(L)))
 
 D = t(labels2weights(meta$Sample))
 
-# Here we run PRIMUS with 10 random restarts (4-5 minutes with 1 core)
+# Here we run PRIMUS with 5 random restarts (4-5 minutes with 1 core)
 # k is the number of clusters. Users can set different values and select the optimal k based on BIC.
 fits <- list()
 
 for (i in seq.int(5) ){
+    set.seed(i * 1234)
     fits[[i]] = runPrimus(Y = counts, D = D, g = meta$sizeFactor, k = 5, max.iter = 100)
 }
 
