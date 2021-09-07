@@ -19,4 +19,4 @@ devtools::install_github("KaiyangZ/PRIMUS")
 As input PRIMUS takes raw counts from scRNA-seq experiments,
 a design matrix encoding the different nuisance factors, such as patient labels and
 technical factors, and a vector of size factors. PRIMUS then uses a bilinear Poisson regression model to simultaneously factorize the raw data into the defined nuisance factors, undefined cellular phenotypes, and their corresponding transcriptomic profiles.
-Check out this [vignette](https://htmlpreview.github.io/?https://github.com/KaiyangZ/PRIMUS/blob/master/vignettes/quickstart.html) for a quick start tutorial.
+Check out [this vignette](https://htmlpreview.github.io/?https://github.com/KaiyangZ/PRIMUS/blob/master/vignettes/quickstart.html) for a quick start tutorial.
