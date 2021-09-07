@@ -3,7 +3,7 @@
 #' `runPrimus` identifies phenotypic cell groups from scRNA-seq data while accounting for nuisance factors (e.g. data source specific signals, technical noises). 
 #'
 #' @param Y Input raw counts matrix. Rows represent genes and columns present cells.
-#' @param D Design matrix of nuisance factors. To remove data source specific signals, this is an adjacency matrix specifing the data source labels of cells in Y. Rows represent nuisance factors. Columns represent cells, corresponding to those in Y.
+#' @param D Design matrix of nuisance factors. To remove data source specific signals, this is an adjacency matrix specifying the data source labels of cells in Y. Rows represent nuisance factors. Columns represent cells, corresponding to those in Y.
 #' @param k Number of latent phenotypic groups.
 #' @param g Size factors for cells in Y. (default 1).
 #' @param w Weight for each cell. This is only useful if you want to weight each cell differently. (default 1). 

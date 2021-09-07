@@ -9,7 +9,7 @@ runPrimus(Y, D, k, g = 1, w = 1, max.iter = 100L, min.delta = 1.48e-09)
 \arguments{
 \item{Y}{Input raw counts matrix. Rows represent genes and columns present cells.}
 
-\item{D}{Design matrix of nuisance factors. To remove data source specific signals, this is an adjacency matrix specifing the data source labels of cells in Y. Rows represent nuisance factors. Columns represent cells, corresponding to those in Y.}
+\item{D}{Design matrix of nuisance factors. To remove data source specific signals, this is an adjacency matrix specifying the data source labels of cells in Y. Rows represent nuisance factors. Columns represent cells, corresponding to those in Y.}
 
 \item{k}{Number of latent phenotypic groups.}
 
