@@ -19,5 +19,10 @@ Useful links:
 \author{
 \strong{Maintainer}: Kaiyang Zhang \email{kaiyang.zhang@helsinki.fi}
 
+Authors:
+\itemize{
+  \item Antti Hakkinen \email{antti.e.hakkinen@helsinki.fi}
+}
+
 }
 \keyword{internal}

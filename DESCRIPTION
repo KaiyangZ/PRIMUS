@@ -1,15 +1,16 @@
 Package: PRIMUS
 Title: Poisson scRNA Integration of Mixed Unknown Signals 
 Version: 0.1.0
-Authors@R: 
+Authors@R: c( 
     person(given = "Antti",
            family = "Hakkinen",
-           role = c("aut", "cre"),
-           email = "antti.e.hakkinen@helsinki.fi")
+           role = c("aut"),
+           email = "antti.e.hakkinen@helsinki.fi"),
     person(given = "Kaiyang",
            family = "Zhang",
            role = c("aut", "cre"),
            email = "kaiyang.zhang@helsinki.fi")
+    )
 Description: This package implements the PRIMUS algorithm, a holistic clustering approach that identifies phenotypic cell groups from the scRNA-seq data while accounting for patient-specific components as well as technical noise. 
 License: GPL (>= 3)
 Encoding: UTF-8
