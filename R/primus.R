@@ -120,7 +120,7 @@ primus_centroid <- function(A, B, g = 1., w = 1.) {
 #' @param Y Raw counts matrix.
 #' @param g Size factors for cells in B. (default 1).
 #' @param w Weight for each cell. This is only useful if you have weighted each cell differently in fitting. (default NULL). 
-#' @param fits A list of fits with different different number of latent clusters (k).  
+#' @param fits A list of fits with different number of latent clusters (k).  
 #' 
 #' @return A vector of BICs for the input fits. 
 #' 
@@ -146,7 +146,7 @@ calcBIC <- function(Y, g, w = NULL, fits = NULL) {
             return (dofs)
         })
     }
-    bics <- log(samps)* (dofs) + 2*sapply(fits, function(x) x$res)
+    bics <- log(samps)* (dofs) + 2*sapply(fits, function(x) x$cost)
     return(bics)
 }
 
