@@ -120,7 +120,9 @@ Visualization using UMAP
 ```{r message = FALSE, fig.height=4, fig.width=14}
 umap.coor.Z <- uwot::umap(t(Z.sqrt), n_components = 2,
                            metric = "cosine",  min_dist = 0.3,
-                           n_neighbors = 30 )
+                           n_neighbors = 30, 
+                           y = as.factor(fit$L),
+                           target_weight = 0.05)
 
 meta$Z_UMAP_1 = umap.coor.Z[, 1]
 meta$Z_UMAP_2 = umap.coor.Z[, 2]
