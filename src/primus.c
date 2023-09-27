@@ -5,7 +5,7 @@
 #include <string.h>
 #include <omp.h>
 #define CSTACK_DEFNS 7
-#include "Rinterface.h"
+#include "R_ext/GraphicsEngine.h"
 
 /*
  * NOTE: this file uses a different naming convention for the dimensions
