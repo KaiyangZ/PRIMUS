@@ -1,0 +1,58 @@
+#!/bin/sh
+
+# configure programs
+[ -z "$CC" ] && CC='cc'
+[ -z "$SED" ] && SED='sed'
+
+# test if a C compiler supports the provided flags
+test_cc_flags() {
+	if echo 'int main(void) { return 0; }' | \
+			$CC "$@" -o /dev/null -x c /dev/stdin >/dev/null 2>&1; then
+		echo "$@"
+	else
+		return 1
+	fi
+}
+
+# if not user provided..
+if [ -z "$openmp_CFLAGS" ] && [ -z "$openmp_LIBS" ]; then
+	# -fopenmp
+	if flags="$( test_cc_flags -fopenmp )"; then
+		echo "$0: $flags is supported" >&2
+
+		fopenmp_cflags="$flags"
+		fopenmp_libs=""
+	fi
+
+	# -fopenmp-simd
+	if flags="$( test_cc_flags -fopenmp-simd )"; then
+		echo "$0: $flags is supported" >&2
+
+		fopenmp_simd_cflags="$flags"
+	fi
+
+	# try to use libomp from Homebrew for Apple clang
+	if [ -z "$fopenmp_cflags" ]; then
+		if brew_prefix="$( brew --prefix )"; then
+			echo "$0: Homebrew found at $brew_prefix" >&2
+
+			test_CFLAGS="-I${brew_prefix}/opt/libomp/include/ -Xpreprocessor -fopenmp"
+			test_LIBS="${brew_prefix}/opt/libomp/lib/libomp.a"
+			if flags="$( test_cc_flags $test_CFLAGS $test_LIBS )"; then
+				echo "$0: Homebrew libomp CFLAGS: $test_CFLAGS" >&2
+				echo "$0: Homebrew libomp LIBS: $test_LIBS" >&2
+
+				fopenmp_cflags="$test_CFLAGS"
+				fopenmp_libs="$test_LIBS"
+			fi
+		fi
+	fi
+
+	# gather
+	openmp_CFLAGS="$fopenmp_cflags $fopenmp_simd_cflags"
+	openmp_LIBS="$fopenmp_libs"
+fi
+
+# generate src/Makevars
+$SED -e "s#@openmp_CFLAGS@#${openmp_CFLAGS}#" -e "s#@openmp_LIBS@#${openmp_LIBS}#" \
+	'src/Makevars.in' >'src/Makevars'

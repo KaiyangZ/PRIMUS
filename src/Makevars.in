@@ -1,0 +1,4 @@
+
+# add OpenMP flags
+PKG_CFLAGS = $(SHLIB_OPENMP_CFLAGS) @openmp_CFLAGS@
+PKG_LIBS = $(SHLIB_OPENMP_LIBS) @openmp_LIBS@

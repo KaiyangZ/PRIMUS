@@ -1,11 +1,10 @@
-/*#define R_NO_REMAP
-#include <R.h>*/
+
+#if defined(_OPENMP)
+#	include <omp.h>
+#endif
 #include <Rinternals.h>
 #include <assert.h>
 #include <string.h>
-#include <omp.h>
-#define CSTACK_DEFNS 7
-#include "Rinterface.h"
 
 /*
  * NOTE: this file uses a different naming convention for the dimensions
@@ -86,6 +85,7 @@ prism_solve_poi_upd(void *scratch, const double *x, const double *a, double b, s
 
         /* Predict */
         lam = 0.;
+#pragma omp simd
         for (j = 0; j < n; ++j)
         {
                 /* Predict */
@@ -100,6 +100,7 @@ prism_solve_poi_upd(void *scratch, const double *x, const double *a, double b, s
         coe = z_or_div(b, lam);
 
         /* Update numerator */
+#pragma omp simd
         for (j = 0; j < n; ++j)
                 num[j] += coe * lams[j];
 }
@@ -121,6 +122,7 @@ prism_solve_poi_div(double *x, void *scratch, size_t n)
 
         /* Update x & compute gradient bound */
         delta = 0.;
+#pragma omp simd
         for (j = 0; j < n; ++j)
                 delta += update_ratio(&x[j], num[j], den[j]);
 
@@ -188,16 +190,36 @@ primus_solve_R(SEXP X_R, SEXP t_A_R, SEXP B_R, SEXP max_iter_R, SEXP min_delta_R
         /* Create output */
         Y_R = PROTECT(allocMatrix(REALSXP, n, r));
         /* Allocate scratch */
-        S = (double *)R_alloc(sizeof(*S), 3*n);
+#if defined(_OPENMP)
+        S = (double *)R_alloc(sizeof(*S), omp_get_max_threads()*3*n);
+#else
+				S = (double *)R_alloc(sizeof(*S), 3*n);
+#endif
+
+				{ double *Y = REAL(Y_R);
+				const double *X = REAL(X_R);
+				const double *t_A = REAL(t_A_R);
+				const double *B = REAL(B_R);
+
+				int max_iter = *INTEGER(max_iter_R);
+				double min_delta = *REAL(min_delta_R);
 
         /* Solve */
+#pragma omp parallel for schedule(static)
         for (j = 0; j < r; ++j)
         {
+#if defined(_OPENMP)
+                int t = omp_get_thread_num();
+#else
+								int t = 0;
+#endif
+
                 /* Boot */
-                memcpy(&REAL(Y_R)[j*n], &REAL(X_R)[j*n], n * sizeof(*REAL(Y_R)));
+                memcpy(&Y[j*n], &X[j*n], n * sizeof(*Y));
                 /* Optimize */
-                solve_poi(S, &REAL(Y_R)[j*n], REAL(t_A_R), &REAL(B_R)[j*m], m, n, *INTEGER(max_iter_R), *REAL(min_delta_R));
+                solve_poi(&S[t*3*n], &Y[j*n], t_A, &B[j*m], m, n, max_iter, min_delta);
         }
+				}
 
         UNPROTECT(1);
         return Y_R;
@@ -218,10 +240,12 @@ label_poi(double *costs, const double *x, const double *t_A, const double *b, do
         {
                 /* Compute design rate */
                 lam = 0.;
+#pragma omp simd reduction(+: lam)
                 for (j = 0; j < s; ++j)
                         lam += t_A[j+i*n] * x[j];
 
                 /* Accumulate costs */
+#pragma omp simd
                 for (j = s; j < n; ++j)
                         costs[j-s] += poi_dist( b[i], g * ( lam + t_A[j+i*n] ) );
         }
@@ -238,7 +262,7 @@ label_poi(double *costs, const double *x, const double *t_A, const double *b, do
 SEXP
 primus_label_R(SEXP L_R, SEXP X_R, SEXP t_A_R, SEXP B_R, SEXP g_R, SEXP s_R)
 {
-        int m, n, r, s, j, lab;
+        int m, n, r, s, j;
         double *S, res;
 
         /* Check arguments */
@@ -279,19 +303,38 @@ primus_label_R(SEXP L_R, SEXP X_R, SEXP t_A_R, SEXP B_R, SEXP g_R, SEXP s_R)
                 error("'%s' must be %d-by-1", "g", r);
 
         /* Allocate scratch */
-        S = (double *)R_alloc(sizeof(*S), n-s);
+#if defined(_OPENMP)
+        S = (double *)R_alloc(sizeof(*S), omp_get_max_threads()*(n-s));
+#else
+				S = (double *)R_alloc(sizeof(*S), n-s);
+#endif
+
+				{ const double *X = REAL(X_R);
+				const double *t_A = REAL(t_A_R);
+				const double *B = REAL(B_R);
+				const double *g = REAL(g_R);
+				int *L = INTEGER(L_R);
 
         /* Solve */
         res = 0.;
+#pragma omp parallel for schedule(static) reduction(+: res)
         for (j = 0; j < r; ++j)
         {
+#if defined(_OPENMP)
+								int t = omp_get_thread_num();
+#else
+								int t = 0;
+#endif
+                int lab;
+
                 /* Solve */
-                lab = (int)label_poi(S, &REAL(X_R)[j*n], REAL(t_A_R), &REAL(B_R)[j*m], REAL(g_R)[j], m, n, s);
+                lab = (int)label_poi(&S[t*(n-s)], &X[j*n], t_A, &B[j*m], g[j], m, n, s);
 
                 /* Store */
-                res += S[lab];
-                INTEGER(L_R)[j] = lab + 1;   /* NB. adjust for R */
+                res += (&S[t*(n-s)])[lab];
+                L[j] = lab + 1;   /* NB. adjust for R */
         }
+				}
 
         return ScalarReal(res);
 }
@@ -306,6 +349,7 @@ centroid_poi(const double *a, const double *b, const double *g, size_t n)
 
         /* Average data for an upper bound */
         sum_b = 0.;
+#pragma omp simd
         for (i = 0; i < n; ++i)
                 sum_b += b[i] / g[i];
 
@@ -319,6 +363,7 @@ centroid_poi(const double *a, const double *b, const double *g, size_t n)
         {
                 /* Compute objective */
                 f = 0.;
+#pragma omp simd
                 for (i = 0; i  < n; ++i)
                         f += b[i] / (( g[i] * (a[i] + x) ));
 
@@ -364,9 +409,16 @@ primus_centroid_R(SEXP t_A_R, SEXP t_B_R, SEXP g_R)
         /* Create output */
         x_R = PROTECT(allocVector(REALSXP, m));
 
+				{ double *x = REAL(x_R);
+				const double *t_A = REAL(t_A_R);
+				const double *t_B = REAL(t_B_R);
+				const double *g = REAL(g_R);
+
         /* Solve centroids */
+#pragma omp parallel for schedule(static)
         for (i = 0; i < m; ++i)
-                REAL(x_R)[i] = centroid_poi(&REAL(t_A_R)[i*n], &REAL(t_B_R)[i*n], REAL(g_R), n);
+                x[i] = centroid_poi(&t_A[i*n], &t_B[i*n], g, n);
+				}
 
         UNPROTECT(1);
         return x_R;
