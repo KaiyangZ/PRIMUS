@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-In this guide, we will use a simulated dataset that was generated using the [splatter](https://www.bioconductor.org/packages/release/bioc/vignettes/splatter/inst/doc/splatPop.html) package to demonstrates how to use PRIMUS. To begin, download the [raw counts](https://app.anduril.org/flees/download/simulated_scRNAseq/Sb12trYZNOwDthIjTHvuNSvdBkhea3/counts.RDS) and the [metadata](https://app.anduril.org/flees/download/simulated_scRNAseq/Sb12trYZNOwDthIjTHvuNSvdBkhea3/metadata.RDS). 
+In this guide, we will use a simulated dataset that was generated using the [splatter](https://www.bioconductor.org/packages/release/bioc/vignettes/splatter/inst/doc/splatPop.html) package to demonstrates how to use PRIMUS. To begin, download the [raw counts](https://csbi.ltdk.helsinki.fi/pub/home/kaizhang/simulated_scRNAseq/counts.RDS) and the [metadata](https://csbi.ltdk.helsinki.fi/pub/home/kaizhang/simulated_scRNAseq/metadata.RDS). 
 
 ## 1. Loading the data
 
